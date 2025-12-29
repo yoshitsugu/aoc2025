@@ -1,0 +1,84 @@
+import Helper
+
+type Dial =
+  | Left I64
+  | Right I64
+
+
+impl Print Dial with
+    printne d =
+      match d
+        | Left n ->
+            printne ("Left " ++ cast n)
+        | Right n ->
+            printne ("Right " ++ cast n)
+
+is_left (d: Dial): Bool =
+  match d
+  | Left _ -> true
+  | Right _ -> false
+
+dial (n: I64) (d: Dial): (I64, I64) =
+  match d
+  | Left m ->
+      r = (n - m)
+      if r < 0 then
+        offset = -1 * (r / 100 - 1) * 100
+        ((r + offset) % 100, offset / 100)
+      else
+        (r % 100, r / 100)
+  | Right m ->
+      r = n + m
+      (r % 100, r / 100)
+
+parse_line (line: String): Maybe Dial =
+  match head line
+    | Some h ->
+      match parse (tail line)
+        | Some n ->
+          if h == 'L' then Some (Left n)
+          else if h == 'R' then Some (Right n)
+          else None
+        | None -> None
+    | None -> None
+
+run_each_line (infile: InFile) (line: String) (position: I64) (result: Usz): Usz =
+  if line.length == 0 and eof infile then
+    result
+  else
+    match parse_line(line)
+    | Some parsed_dial ->
+      nline = next_line infile
+      next_position, _ = dial(position)(parsed_dial)
+      if next_position == 0 then
+        run_each_line (infile) (nline) (next_position) (result + 1)
+      else
+        run_each_line (infile) (nline) (next_position) (result)
+    | None ->
+      result
+
+
+run_each_line2 (infile: InFile) (line: String) (position: I64) (result: I64): I64 =
+  if line.length == 0 and eof infile then
+    result
+  else
+    match parse_line(line)
+    | Some parsed_dial ->
+      nline = next_line infile
+      next_position, count_zero = dial(position)(parsed_dial)
+      mut count = count_zero
+      if count > 0 and (next_position == 0 or (position == 0 and is_left parsed_dial)) then
+        count := count - 1
+      if next_position == 0 then
+        run_each_line2 (infile) (nline) (next_position) (result + count + 1)
+      else
+        run_each_line2 (infile) (nline) (next_position) (result + count)
+    | None ->
+      result
+
+
+main =
+  infile = open_infile "input"
+  line = next_line infile
+  result = run_each_line2 (infile) (line) (50) (0)
+  print result
