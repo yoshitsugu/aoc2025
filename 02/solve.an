@@ -1,0 +1,118 @@
+import Helper
+import Vec
+
+effect Parse with
+  parse: String -> Unit
+  fetch_parsed: Unit -> Vec (Range I64)
+
+impl Print (Range I64) with
+  printne range =
+    printne '('
+    printne range.start
+    printne ".."
+    printne range.end
+    printne ')'
+
+parse_lines (lines: InFile) =
+  iter lines parse
+  fetch_parsed()
+
+type ParserState =
+  | ParsingStart
+  | ParsingEnd
+
+impl Eq ParserState with
+    (==) l r =
+      match l
+      | ParsingStart ->
+        match r
+        | ParsingStart -> true
+        | _ -> false
+      | ParsingEnd ->
+        match r
+        | ParsingEnd -> true
+        | _ -> false
+
+impl Print ParserState with
+  printne p =
+    match p
+    | ParsingStart -> printne "ParsingStart"
+    | ParsingEnd -> printne "ParsingEnd"
+
+_parse  (line: String) (i: Usz) (left: I64) (right: I64) (state: ParserState) (result: !Vec (Range I64)): Vec (Range I64) =
+  // printne ("i: " ++ (cast i) ++ ", left: " ++ (cast left) ++ ", right: " ++ (cast right) ++ ", result:")
+  // printne result
+  // printne ", state: "
+  // printne state
+  // printne '\n'
+  if i < line.length then
+      off = offset (line.c_string) i
+      c = deref_ptr off
+      if is_digit c then
+        if state == ParsingStart then
+          match digit2int c
+          | Some n -> _parse line (i + 1) (left * 10 + n) (right) (state) (result)
+          | None -> _parse line (i + 1) (0) (0) (ParsingStart) (result)
+        else
+          match digit2int c
+          | Some n -> _parse line (i + 1) (left) (right * 10 + n) (state) (result)
+          | None -> _parse line (i + 1) (0) (0) (ParsingStart) (result)
+      else if c == '-' then
+        _parse line (i + 1) (left) (right) (ParsingEnd) (result)
+      else if c == ',' then
+        push result (Range left right)
+        _parse line (i + 1) (0) (0) (ParsingStart) (result)
+      else
+        // ない気がする
+        print "ERROR: unreachable branch"
+        _parse line (i + 1) (left) (right) (state) (result)
+  else
+    if state == ParsingEnd then
+      // Rangeだと右端が含まれないので1足す
+      push result (Range left (right + 1))
+    @result
+
+
+range_parser (f: Unit -> a can Parse): a =
+  mut initial_result: Vec (Range I64) = empty ()
+  mut result = !initial_result
+  handle f ()
+  | fetch_parsed () -> resume @result
+  | parse (line) ->
+    result := _parse line 0 0 0 ParsingStart result
+    resume ()
+
+check_repeated_twice(str: String): Bool =
+  if (str.length == 0 or str.length % 2 == 1) then
+    false
+  else
+    middle_index = str.length / 2
+    mut init_result = true
+    mut result = !init_result
+    iter (Range 0 middle_index)
+      fn (i) ->
+        result := @result and str.[i] == str.[i + middle_index]
+    @result
+
+main =
+  range_parser
+    fn () ->
+      infile = open_infile "input"
+      ranges = parse_lines(infile)
+      mut init_result: I64 = 0
+      mut result = !init_result
+      loop (vec_index = 0) (ranges = ranges) ->
+        if (ranges.len == vec_index) then
+          return ()
+        else
+          iter ranges.[vec_index]
+            fn (i) ->
+              str: String = cast i
+              if check_repeated_twice(str) then
+                result := @result + i
+          recur (vec_index + 1) (ranges)
+      print @result
+
+
+
+

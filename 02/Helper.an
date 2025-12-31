@@ -1,0 +1,51 @@
+head (s: String): Maybe Char =
+  if s.length == 0 then
+    None
+  else
+    off = offset (s.c_string) 0
+    c = deref_ptr off
+    Some c
+
+tail (s: String): String =
+  if s.length == 0 then
+    ""
+  else
+    String (offset s.c_string 1) (s.length - 1)
+
+is_digit(c: Char): Bool =
+  c_code: I32 = cast c
+  c_code >= (cast '0') and c_code <= (cast '9')
+
+digit2int (c: Char): Maybe (Int a) =
+  if is_digit(c) then
+    c_code: I32 = cast c
+    Some (cast (c_code - (cast '0')))
+  else
+    None
+
+parse_int (s: String) : Maybe I64 =
+    if s.length == 0 then
+      None
+    else
+      mut sum: I64 = 0
+      mut neg = s.[0] == '-'
+      mut i: Usz = if neg then 1 else 0
+
+      if neg and s.length == 1 then
+        None
+      else
+        loop (i = i) (sum = sum) (neg = neg) ->
+          if i >= s.length then
+              if neg then
+                Some (-1 * sum)
+              else
+                Some sum
+          else
+            match digit2int(s.[i])
+            | Some (digit) ->
+              if digit >= 0 and digit <= 9 then
+                recur (i + 1) (sum * 10 + digit) neg
+              else
+                None
+            | None ->
+              None
