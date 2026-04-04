@@ -1,0 +1,59 @@
+import goby/list (map, each, fold, length)
+import goby/string (split, graphemes)
+import goby/stdio
+
+threshold : Int
+threshold = 4
+
+check_around_rolls : List (List String) -> Int -> Int -> Int -> Int -> Bool can Print
+check_around_rolls rolls x y max_x max_y =
+  if rolls[y][x] == "@"
+    around_diffs = [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
+    result =
+      fold around_diffs 0 (fn result d ->
+        diff_y = y + d.1
+        diff_x = x + d.0
+        if 0 <= diff_y && diff_y < max_y && 0 <= diff_x && diff_x < max_x
+          c = rolls[y + d.1][x + d.0]
+          if rolls[y + d.1][x + d.0] == "@"
+            result + 1
+          else
+            result
+        else
+          result
+      )
+    result < threshold
+  else
+    False
+
+count_valid_roll : List (List String) -> Int -> Int -> Int -> Int -> Int can Print
+count_valid_roll rolls x y max_x max_y =
+  if y >= max_y
+    0
+  else
+    if x >= max_x
+      count_valid_roll rolls 0 (y + 1) max_x max_y
+    else
+      checked_bool = check_around_rolls rolls x y max_x max_y
+      checked =
+        if checked_bool
+          1
+        else
+          0
+      # println("checked: ${checked}, x: ${x}, y: ${y}")
+      rest = count_valid_roll rolls (x + 1) y max_x max_y
+      checked + rest
+
+check : List (List String) -> Int can Print
+check rolls =
+  max_y = length rolls
+  max_x = length(rolls[0])
+  count_valid_roll rolls 0 0 max_x max_y
+
+main : Unit -> Unit can Print, Read
+main =
+  lines = read_lines ()
+  rolls = list.map lines graphemes
+  result = check rolls
+  println "${result}"
+
